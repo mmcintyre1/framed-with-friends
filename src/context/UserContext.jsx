@@ -22,8 +22,13 @@ export function UserProvider({ children }) {
     localStorage.removeItem('fwf_user')
   }
 
+  const updateUser = (userData) => {
+    setUser(userData)
+    localStorage.setItem('fwf_user', JSON.stringify(userData))
+  }
+
   return (
-    <UserContext.Provider value={{ user, login, logout }}>
+    <UserContext.Provider value={{ user, login, logout, updateUser }}>
       {children}
     </UserContext.Provider>
   )
