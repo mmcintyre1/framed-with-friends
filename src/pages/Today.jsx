@@ -30,12 +30,13 @@ function ScoreEntryModal({ game, onClose, onSave, existingScore }) {
 
   const handleSave = async () => {
     setSaving(true)
-    let score, solved
+    let score, solved, puzzleNumber
 
     if (mode === 'paste') {
       if (!parsed) { setError('Paste a valid score first.'); setSaving(false); return }
       score = parsed.score
       solved = parsed.solved
+      puzzleNumber = parsed.puzzleNumber
     } else {
       if (dnf) {
         score = null
@@ -46,9 +47,10 @@ function ScoreEntryModal({ game, onClose, onSave, existingScore }) {
         score = n
         solved = true
       }
+      puzzleNumber = null
     }
 
-    await onSave({ score, solved })
+    await onSave({ score, solved, puzzleNumber })
     setSaving(false)
   }
 
@@ -159,7 +161,7 @@ function ScoreEntryModal({ game, onClose, onSave, existingScore }) {
 
 export default function Today() {
   const { user } = useUser()
-  const [scores, setScores] = useState([]) // all players' scores for today
+  const [scores, setScores] = useState([])
   const [players, setPlayers] = useState([])
   const [activeModal, setActiveModal] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -175,6 +177,15 @@ export default function Today() {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  // Real-time: refetch whenever any score for today changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('today-scores')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scores' }, fetchData)
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [fetchData])
 
   const getScore = (playerId, gameKey) =>
     scores.find(s => s.player_id === playerId && s.game_key === gameKey)
@@ -208,16 +219,17 @@ export default function Today() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleSave = async ({ score, solved }) => {
+  const handleSave = async ({ score, solved, puzzleNumber }) => {
     const existing = getScore(user.id, activeModal.key)
     if (existing) {
-      await supabase.from('scores').update({ score, solved }).eq('id', existing.id)
+      await supabase.from('scores').update({ score, solved, puzzle_number: puzzleNumber }).eq('id', existing.id)
     } else {
       await supabase.from('scores').insert({
         player_id: user.id,
         game_key: activeModal.key,
         score,
         solved,
+        puzzle_number: puzzleNumber,
         date: TODAY,
       })
     }
@@ -244,7 +256,10 @@ export default function Today() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-medium text-zinc-400">{game.label}</span>
-                  <span className="text-lg">{game.emoji}</span>
+                  {myScore?.puzzle_number
+                    ? <span className="text-xs text-zinc-600">#{myScore.puzzle_number}</span>
+                    : <span className="text-lg">{game.emoji}</span>
+                  }
                 </div>
                 {myScore ? (
                   <>
@@ -275,14 +290,16 @@ export default function Today() {
         <div className="space-y-2">
           {GAMES.map(game => {
             const gameScores = scores.filter(s => s.game_key === game.key)
-            if (gameScores.length === 0 && !players.some(p => getScore(p.id, game.key))) {
-              return null
-            }
+            if (gameScores.length === 0) return null
+            const puzzleNum = gameScores.find(s => s.puzzle_number)?.puzzle_number
             return (
               <div key={game.key} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
-                  <span>{game.emoji}</span>
-                  <span className="font-medium text-sm text-zinc-200">{game.label}</span>
+                <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span>{game.emoji}</span>
+                    <span className="font-medium text-sm text-zinc-200">{game.label}</span>
+                  </div>
+                  {puzzleNum && <span className="text-xs text-zinc-600">#{puzzleNum}</span>}
                 </div>
                 <div className="divide-y divide-zinc-800">
                   {players.map(p => {
