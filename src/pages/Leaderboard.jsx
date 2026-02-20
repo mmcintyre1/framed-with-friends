@@ -69,15 +69,16 @@ export default function Leaderboard() {
       const playerScores = filteredScores.filter(s => s.player_id === p.id)
       const played = playerScores.length
       const solved = playerScores.filter(s => s.solved).length
-      const totalGuesses = playerScores.filter(s => s.solved).reduce((acc, s) => acc + s.score, 0)
-      const avg = solved > 0 ? (totalGuesses / solved).toFixed(2) : null
+      // DNF counts as 7 (one worse than max) in the average
+      const totalGuesses = playerScores.reduce((acc, s) => acc + (s.solved ? s.score : 7), 0)
+      const avg = played > 0 ? (totalGuesses / played).toFixed(2) : null
 
       return {
         ...p,
         played,
         solved,
         avg,
-        displayScore: avg !== null ? avg : played === 0 ? '—' : 'X',
+        displayScore: avg !== null ? avg : '—',
         subtitle: played > 0 ? `${solved}/${played} solved` : 'no scores',
         sortKey: avg !== null ? parseFloat(avg) : 999,
       }
@@ -133,7 +134,7 @@ export default function Leaderboard() {
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-zinc-500 uppercase tracking-wider">
-            {period === 'today' ? "Today's" : 'All-time'} avg guesses (solved only)
+            {period === 'today' ? "Today's" : 'All-time'} avg guesses (DNF = 7)
           </p>
           <LeaderboardTable rows={rows} userId={user.id} />
         </div>
