@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../context/UserContext'
+import { hashPin } from '../lib/hash'
 
 export default function LoginScreen() {
   const { login } = useUser()
@@ -31,11 +32,12 @@ export default function LoginScreen() {
     setLoading(true)
     setError('')
 
+    const hashed = await hashPin(pin)
     const { data, error: err } = await supabase
       .from('players')
       .select('id, name')
       .eq('id', selected.id)
-      .eq('pin', pin)
+      .eq('pin', hashed)
       .single()
 
     setLoading(false)
@@ -55,9 +57,10 @@ export default function LoginScreen() {
     setLoading(true)
     setError('')
 
+    const hashed = await hashPin(pin)
     const { data, error: err } = await supabase
       .from('players')
-      .insert({ name: newName.trim(), pin })
+      .insert({ name: newName.trim(), pin: hashed })
       .select('id, name')
       .single()
 
