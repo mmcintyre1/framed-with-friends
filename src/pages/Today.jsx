@@ -4,6 +4,7 @@ import { useUser } from '../context/UserContext'
 import { GAMES } from '../lib/constants'
 import { parseShareText } from '../lib/parseScore'
 import ScoreDots from '../components/ScoreDots'
+import Avatar from '../components/Avatar'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -168,7 +169,7 @@ export default function Today() {
 
   const fetchData = useCallback(async () => {
     const [{ data: playersData }, { data: scoresData }] = await Promise.all([
-      supabase.from('players').select('id, name').order('name'),
+      supabase.from('players').select('id, name, avatar').order('name'),
       supabase.from('scores').select('*').eq('date', TODAY),
     ])
     setPlayers(playersData || [])
@@ -306,9 +307,12 @@ export default function Today() {
                     const s = getScore(p.id, game.key)
                     return (
                       <div key={p.id} className="px-4 py-3 flex items-center justify-between">
-                        <span className={`text-sm ${p.id === user.id ? 'text-emerald-400 font-medium' : 'text-zinc-300'}`}>
-                          {p.name}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <Avatar avatar={p.avatar} name={p.name} size="xs" />
+                          <span className={`text-sm ${p.id === user.id ? 'text-emerald-400 font-medium' : 'text-zinc-300'}`}>
+                            {p.name}
+                          </span>
+                        </div>
                         <div className="flex items-center gap-3">
                           <ScoreDots score={s?.score} solved={s?.solved} />
                           <span className="text-sm text-zinc-400 w-8 text-right font-mono">

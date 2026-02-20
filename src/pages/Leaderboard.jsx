@@ -2,8 +2,20 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../context/UserContext'
 import { GAMES } from '../lib/constants'
+import Avatar from '../components/Avatar'
 
 const TODAY = new Date().toISOString().slice(0, 10)
+
+function daysAgo(n) {
+  return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
+}
+
+const PERIODS = [
+  { key: 'today', label: 'Today', desc: "Today's" },
+  { key: '7d',    label: '7 Days', desc: 'Last 7 days' },
+  { key: '30d',   label: '30 Days', desc: 'Last 30 days' },
+  { key: 'all',   label: 'All Time', desc: 'All-time' },
+]
 
 function Medal({ rank }) {
   if (rank === 1) return <span className="text-base">🥇</span>
@@ -25,6 +37,7 @@ function LeaderboardTable({ rows, userId }) {
           <div className="w-6 flex justify-center">
             <Medal rank={i + 1} />
           </div>
+          <Avatar avatar={row.avatar} name={row.name} size="xs" />
           <span className={`flex-1 text-sm font-medium ${row.id === userId ? 'text-emerald-400' : 'text-zinc-200'}`}>
             {row.name}
           </span>
@@ -38,7 +51,7 @@ function LeaderboardTable({ rows, userId }) {
 
 export default function Leaderboard() {
   const { user } = useUser()
-  const [period, setPeriod] = useState('today') // 'today' | 'alltime'
+  const [period, setPeriod] = useState('today')
   const [gameFilter, setGameFilter] = useState('all')
   const [scores, setScores] = useState([])
   const [players, setPlayers] = useState([])
@@ -47,11 +60,14 @@ export default function Leaderboard() {
   useEffect(() => {
     async function load() {
       setLoading(true)
+      let scoresQuery = supabase.from('scores').select('*')
+      if (period === 'today') scoresQuery = scoresQuery.eq('date', TODAY)
+      else if (period === '7d') scoresQuery = scoresQuery.gte('date', daysAgo(6))
+      else if (period === '30d') scoresQuery = scoresQuery.gte('date', daysAgo(29))
+
       const [{ data: playersData }, { data: scoresData }] = await Promise.all([
-        supabase.from('players').select('id, name'),
-        period === 'today'
-          ? supabase.from('scores').select('*').eq('date', TODAY)
-          : supabase.from('scores').select('*'),
+        supabase.from('players').select('id, name, avatar'),
+        scoresQuery,
       ])
       setPlayers(playersData || [])
       setScores(scoresData || [])
@@ -91,16 +107,16 @@ export default function Leaderboard() {
 
   return (
     <div className="space-y-5 pt-2">
-      <div className="flex gap-2">
-        {['today', 'alltime'].map(p => (
+      <div className="flex gap-1.5">
+        {PERIODS.map(p => (
           <button
-            key={p}
-            onClick={() => setPeriod(p)}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-              period === p ? 'bg-emerald-500 text-black' : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+            key={p.key}
+            onClick={() => setPeriod(p.key)}
+            className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors ${
+              period === p.key ? 'bg-emerald-500 text-black' : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            {p === 'today' ? 'Today' : 'All Time'}
+            {p.label}
           </button>
         ))}
       </div>
@@ -134,7 +150,7 @@ export default function Leaderboard() {
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-zinc-500 uppercase tracking-wider">
-            {period === 'today' ? "Today's" : 'All-time'} avg guesses (DNF = 7)
+            {PERIODS.find(p => p.key === period)?.desc} avg guesses (DNF = 7)
           </p>
           <LeaderboardTable rows={rows} userId={user.id} />
         </div>

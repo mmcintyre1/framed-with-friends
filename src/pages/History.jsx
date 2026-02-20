@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useUser } from '../context/UserContext'
 import { GAMES } from '../lib/constants'
 import ScoreDots from '../components/ScoreDots'
+import Avatar from '../components/Avatar'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 
 function StatCard({ label, value, sub }) {
@@ -103,6 +104,8 @@ function ScoreChart({ scores, userId, gameFilter }) {
   )
 }
 
+const DATES_PER_PAGE = 10
+
 export default function History() {
   const { user } = useUser()
   const [gameFilter, setGameFilter] = useState('all')
@@ -110,11 +113,12 @@ export default function History() {
   const [scores, setScores] = useState([])
   const [players, setPlayers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [visibleCount, setVisibleCount] = useState(DATES_PER_PAGE)
 
   useEffect(() => {
     async function load() {
       const [{ data: playersData }, { data: scoresData }] = await Promise.all([
-        supabase.from('players').select('id, name'),
+        supabase.from('players').select('id, name, avatar'),
         supabase.from('scores').select('*').order('date', { ascending: false }),
       ])
       setPlayers(playersData || [])
@@ -138,6 +142,11 @@ export default function History() {
     byDate[s.date].push(s)
   })
   const dates = Object.keys(byDate).sort((a, b) => b.localeCompare(a))
+  const visibleDates = dates.slice(0, visibleCount)
+  const hasMore = dates.length > visibleCount
+
+  // Reset pagination when filters change
+  useEffect(() => { setVisibleCount(DATES_PER_PAGE) }, [gameFilter, viewMode])
 
   // Stats (always based on my scores)
   const myScores = scores.filter(s => s.player_id === user.id &&
@@ -206,7 +215,7 @@ export default function History() {
         <div className="text-center text-zinc-600 py-8">No scores yet</div>
       ) : (
         <div className="space-y-4">
-          {dates.map(date => {
+          {visibleDates.map(date => {
             const dayScores = byDate[date]
             return (
               <div key={date} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
@@ -241,6 +250,14 @@ export default function History() {
               </div>
             )
           })}
+          {hasMore && (
+            <button
+              onClick={() => setVisibleCount(c => c + DATES_PER_PAGE)}
+              className="w-full py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+            >
+              Show {Math.min(DATES_PER_PAGE, dates.length - visibleCount)} more days
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -291,7 +308,10 @@ function HeadToHead({ scores, players, userId, gameFilter }) {
         return (
           <div key={opponent.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="font-medium text-zinc-100">{opponent.name}</span>
+              <div className="flex items-center gap-2">
+                <Avatar avatar={opponent.avatar} name={opponent.name} size="sm" />
+                <span className="font-medium text-zinc-100">{opponent.name}</span>
+              </div>
               <span className="text-xs text-zinc-500">{compared} games</span>
             </div>
             {compared === 0 ? (

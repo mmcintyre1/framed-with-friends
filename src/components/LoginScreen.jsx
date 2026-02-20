@@ -2,6 +2,18 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../context/UserContext'
 import { hashPin } from '../lib/hash'
+import Avatar from './Avatar'
+
+const REMEMBERED_KEY = 'fwf_remembered'
+
+function getRemembered() {
+  try { return JSON.parse(localStorage.getItem(REMEMBERED_KEY) || '{}') } catch { return {} }
+}
+
+function saveRemembered(playerId, hashedPin) {
+  const current = getRemembered()
+  localStorage.setItem(REMEMBERED_KEY, JSON.stringify({ ...current, [playerId]: hashedPin }))
+}
 
 export default function LoginScreen() {
   const { login } = useUser()
@@ -15,15 +27,33 @@ export default function LoginScreen() {
   const [showNew, setShowNew] = useState(false)
 
   useEffect(() => {
-    supabase.from('players').select('id, name').order('name').then(({ data }) => {
+    supabase.from('players').select('id, name, avatar').order('name').then(({ data }) => {
       setPlayers(data || [])
     })
   }, [])
 
-  const handleSelect = (player) => {
+  const handleSelect = async (player) => {
     setSelected(player)
     setPin('')
     setError('')
+
+    const remembered = getRemembered()
+    if (remembered[player.id]) {
+      setLoading(true)
+      const { data } = await supabase
+        .from('players')
+        .select('id, name, avatar')
+        .eq('id', player.id)
+        .eq('pin', remembered[player.id])
+        .single()
+      setLoading(false)
+      if (data) {
+        login({ id: data.id, name: data.name, avatar: data.avatar })
+        return
+      }
+      // Remembered token stale — fall through to PIN
+    }
+
     setStep('pin')
   }
 
@@ -35,7 +65,7 @@ export default function LoginScreen() {
     const hashed = await hashPin(pin)
     const { data, error: err } = await supabase
       .from('players')
-      .select('id, name')
+      .select('id, name, avatar')
       .eq('id', selected.id)
       .eq('pin', hashed)
       .single()
@@ -48,7 +78,8 @@ export default function LoginScreen() {
       return
     }
 
-    login({ id: data.id, name: data.name })
+    saveRemembered(data.id, hashed)
+    login({ id: data.id, name: data.name, avatar: data.avatar })
   }
 
   const handleCreatePlayer = async (e) => {
@@ -61,7 +92,7 @@ export default function LoginScreen() {
     const { data, error: err } = await supabase
       .from('players')
       .insert({ name: newName.trim(), pin: hashed })
-      .select('id, name')
+      .select('id, name, avatar')
       .single()
 
     setLoading(false)
@@ -71,8 +102,11 @@ export default function LoginScreen() {
       return
     }
 
-    login({ id: data.id, name: data.name })
+    saveRemembered(data.id, hashed)
+    login({ id: data.id, name: data.name, avatar: data.avatar })
   }
+
+  const remembered = getRemembered()
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6">
@@ -85,13 +119,22 @@ export default function LoginScreen() {
         {step === 'pick' && (
           <div className="space-y-3">
             <p className="text-xs text-zinc-500 uppercase tracking-wider mb-3">Who are you?</p>
-            {players.map(p => (
+
+            {loading && (
+              <div className="text-center text-zinc-600 py-4 text-sm">Signing in…</div>
+            )}
+
+            {!loading && players.map(p => (
               <button
                 key={p.id}
                 onClick={() => handleSelect(p)}
-                className="w-full text-left px-4 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all text-zinc-100 font-medium"
+                className="w-full text-left px-4 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all flex items-center gap-3"
               >
-                {p.name}
+                <Avatar avatar={p.avatar} name={p.name} size="sm" />
+                <span className="flex-1 text-zinc-100 font-medium">{p.name}</span>
+                {remembered[p.id] && (
+                  <span className="text-xs text-zinc-600">remembered</span>
+                )}
               </button>
             ))}
 
@@ -138,9 +181,12 @@ export default function LoginScreen() {
 
         {step === 'pin' && (
           <form onSubmit={handlePinSubmit} className="space-y-4">
-            <p className="text-zinc-400 text-sm">
-              Hey <span className="text-zinc-100 font-medium">{selected?.name}</span>, enter your PIN
-            </p>
+            <div className="flex items-center gap-3 mb-2">
+              <Avatar avatar={selected?.avatar} name={selected?.name} size="md" />
+              <p className="text-zinc-400 text-sm">
+                Hey <span className="text-zinc-100 font-medium">{selected?.name}</span>, enter your PIN
+              </p>
+            </div>
             <input
               type="password"
               placeholder="PIN"
