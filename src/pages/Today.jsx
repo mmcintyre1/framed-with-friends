@@ -254,6 +254,7 @@ export default function Today() {
         <div className="grid grid-cols-2 gap-2">
           {GAMES.map(game => {
             const myScore = getScore(user.id, game.key)
+            const puzzleNum = scores.find(s => s.game_key === game.key && s.puzzle_number)?.puzzle_number
             return (
               <button
                 key={game.key}
@@ -262,8 +263,8 @@ export default function Today() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-medium text-zinc-400">{game.label}</span>
-                  {myScore?.puzzle_number
-                    ? <span className="text-xs text-zinc-600">#{myScore.puzzle_number}</span>
+                  {puzzleNum
+                    ? <span className="text-xs text-zinc-600">#{puzzleNum}</span>
                     : <span className="text-lg">{game.emoji}</span>
                   }
                 </div>
