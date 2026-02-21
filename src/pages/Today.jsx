@@ -296,9 +296,8 @@ export default function Today() {
         </div>
         <div className="space-y-2">
           {GAMES.map(game => {
-            const gameScores = scores.filter(s => s.game_key === game.key)
-            if (gameScores.length === 0) return null
             const puzzleNum = getPuzzleNumber(game.epoch)
+            const scoredPlayers = players.filter(p => getScore(p.id, game.key))
             return (
               <div key={game.key} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                 <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
@@ -309,7 +308,9 @@ export default function Today() {
                   <span className="text-xs text-zinc-600">#{puzzleNum}</span>
                 </div>
                 <div className="divide-y divide-zinc-800">
-                  {players.map(p => {
+                  {scoredPlayers.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-zinc-600">No scores yet</div>
+                  ) : scoredPlayers.map(p => {
                     const s = getScore(p.id, game.key)
                     return (
                       <div key={p.id} className="px-4 py-3 flex items-center justify-between">
@@ -320,9 +321,9 @@ export default function Today() {
                           </span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <ScoreDots score={s?.score} solved={s?.solved} />
+                          <ScoreDots score={s.score} solved={s.solved} />
                           <span className="text-sm text-zinc-400 w-8 text-right font-mono">
-                            {s ? (s.solved ? `${s.score}/6` : 'X') : '—'}
+                            {s.solved ? `${s.score}/6` : 'X'}
                           </span>
                         </div>
                       </div>

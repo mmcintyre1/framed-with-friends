@@ -5,7 +5,7 @@ import { GAMES } from '../lib/constants'
 import ScoreDots from '../components/ScoreDots'
 import Avatar from '../components/Avatar'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
-import { todayET, daysAgoET } from '../lib/dates'
+import { todayET, daysAgoET, getPuzzleNumber } from '../lib/dates'
 
 function StatCard({ label, value, sub }) {
   return (
@@ -50,6 +50,45 @@ function computeStreaks(allScores, userId) {
   }
 
   return { current, best }
+}
+
+function ScoreDistribution({ scores, userId, gameFilter }) {
+  const relevant = scores.filter(s =>
+    s.player_id === userId && (gameFilter === 'all' || s.game_key === gameFilter)
+  )
+  if (relevant.length === 0) return null
+
+  const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, X: 0 }
+  relevant.forEach(s => {
+    if (s.solved) counts[s.score]++
+    else counts['X']++
+  })
+
+  const max = Math.max(...Object.values(counts), 1)
+
+  return (
+    <div className="bg-zinc-900 rounded-2xl p-4">
+      <p className="text-xs text-zinc-500 uppercase tracking-wider mb-3">Score distribution</p>
+      <div className="space-y-1.5">
+        {['1', '2', '3', '4', '5', '6', 'X'].map(label => {
+          const count = counts[label]
+          const pct = (count / max) * 100
+          return (
+            <div key={label} className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500 w-4 text-right">{label}</span>
+              <div className="flex-1 bg-zinc-800 rounded-full h-5 overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${label === 'X' ? 'bg-red-600' : 'bg-emerald-500'}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className="text-xs text-zinc-400 w-4 text-right">{count || ''}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 function ScoreChart({ scores, userId, gameFilter }) {
@@ -192,6 +231,7 @@ export default function History() {
         ))}
       </div>
 
+      <ScoreDistribution scores={scores} userId={user.id} gameFilter={gameFilter} />
       <ScoreChart scores={scores} userId={user.id} gameFilter={gameFilter} />
 
       <div className="flex gap-2">
@@ -237,7 +277,10 @@ export default function History() {
                             {playerMap[s.player_id] || '?'}
                           </span>
                         )}
-                        <span className="text-xs text-zinc-500 w-20">{game?.emoji} {game?.label}</span>
+                        <span className="text-xs text-zinc-500 w-28 shrink-0">
+                          {game?.emoji} {game?.label}
+                          <span className="text-zinc-600 ml-1">#{s.puzzle_number || getPuzzleNumber(game?.epoch, s.date)}</span>
+                        </span>
                         <div className="flex-1">
                           <ScoreDots score={s.score} solved={s.solved} />
                         </div>
