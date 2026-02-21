@@ -5,7 +5,7 @@ import { GAMES } from '../lib/constants'
 import { parseShareText } from '../lib/parseScore'
 import ScoreDots from '../components/ScoreDots'
 import Avatar from '../components/Avatar'
-import { todayET } from '../lib/dates'
+import { todayET, getPuzzleNumber } from '../lib/dates'
 
 const TODAY = todayET()
 
@@ -49,7 +49,7 @@ function ScoreEntryModal({ game, onClose, onSave, existingScore }) {
         score = n
         solved = true
       }
-      puzzleNumber = null
+      puzzleNumber = getPuzzleNumber(game.epoch)
     }
 
     await onSave({ score, solved, puzzleNumber })
@@ -209,7 +209,7 @@ export default function Today() {
         if (i === s.score - 1) return '🟩'
         return '⬜'
       }).join('')
-      const num = s.puzzle_number ? ` #${s.puzzle_number}` : ''
+      const num = ` #${s.puzzle_number || getPuzzleNumber(game.epoch)}`
       lines.push(`${boxes}  ${result} ${game.label}${num}`)
     })
 
@@ -254,7 +254,7 @@ export default function Today() {
         <div className="grid grid-cols-2 gap-2">
           {GAMES.map(game => {
             const myScore = getScore(user.id, game.key)
-            const puzzleNum = scores.find(s => s.game_key === game.key && s.puzzle_number)?.puzzle_number
+            const puzzleNum = getPuzzleNumber(game.epoch)
             return (
               <button
                 key={game.key}
@@ -298,7 +298,7 @@ export default function Today() {
           {GAMES.map(game => {
             const gameScores = scores.filter(s => s.game_key === game.key)
             if (gameScores.length === 0) return null
-            const puzzleNum = gameScores.find(s => s.puzzle_number)?.puzzle_number
+            const puzzleNum = getPuzzleNumber(game.epoch)
             return (
               <div key={game.key} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                 <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
@@ -306,7 +306,7 @@ export default function Today() {
                     <span>{game.emoji}</span>
                     <span className="font-medium text-sm text-zinc-200">{game.label}</span>
                   </div>
-                  {puzzleNum && <span className="text-xs text-zinc-600">#{puzzleNum}</span>}
+                  <span className="text-xs text-zinc-600">#{puzzleNum}</span>
                 </div>
                 <div className="divide-y divide-zinc-800">
                   {players.map(p => {
