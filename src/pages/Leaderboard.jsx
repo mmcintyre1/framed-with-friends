@@ -3,11 +3,12 @@ import { supabase } from '../lib/supabase'
 import { useUser } from '../context/UserContext'
 import { GAMES } from '../lib/constants'
 import Avatar from '../components/Avatar'
+import { todayET, daysAgoET } from '../lib/dates'
 
-const TODAY = new Date().toISOString().slice(0, 10)
+const TODAY = todayET()
 
 function daysAgo(n) {
-  return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
+  return daysAgoET(n)
 }
 
 const PERIODS = [

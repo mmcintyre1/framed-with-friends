@@ -5,8 +5,9 @@ import { GAMES } from '../lib/constants'
 import { parseShareText } from '../lib/parseScore'
 import ScoreDots from '../components/ScoreDots'
 import Avatar from '../components/Avatar'
+import { todayET } from '../lib/dates'
 
-const TODAY = new Date().toISOString().slice(0, 10)
+const TODAY = todayET()
 
 function ScoreEntryModal({ game, onClose, onSave, existingScore }) {
   const [mode, setMode] = useState('manual')
@@ -192,7 +193,10 @@ export default function Today() {
     scores.find(s => s.player_id === playerId && s.game_key === gameKey)
 
   const buildShareText = () => {
-    const date = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    const date = new Date().toLocaleDateString('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'short', month: 'short', day: 'numeric',
+    })
     const lines = [`Framed w/ Friends — ${date}`]
 
     GAMES.forEach(game => {
@@ -205,7 +209,8 @@ export default function Today() {
         if (i === s.score - 1) return '🟩'
         return '⬜'
       }).join('')
-      lines.push(`${boxes}  ${result} ${game.label}`)
+      const num = s.puzzle_number ? ` #${s.puzzle_number}` : ''
+      lines.push(`${boxes}  ${result} ${game.label}${num}`)
     })
 
     return lines.join('\n')

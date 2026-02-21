@@ -5,6 +5,7 @@ import { GAMES } from '../lib/constants'
 import ScoreDots from '../components/ScoreDots'
 import Avatar from '../components/Avatar'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { todayET, daysAgoET } from '../lib/dates'
 
 function StatCard({ label, value, sub }) {
   return (
@@ -34,8 +35,8 @@ function computeStreaks(allScores, userId) {
   }
 
   // Current streak (working back from today or yesterday)
-  const today = new Date().toISOString().slice(0, 10)
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+  const today = todayET()
+  const yesterday = daysAgoET(1)
   const lastDate = myDates[myDates.length - 1]
   if (lastDate !== today && lastDate !== yesterday) return { current: 0, best }
 
