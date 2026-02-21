@@ -262,11 +262,11 @@ export default function Today() {
                 className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 text-left transition-all"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-medium text-zinc-400">{game.label}</span>
-                  {puzzleNum
-                    ? <span className="text-xs text-zinc-600">#{puzzleNum}</span>
-                    : <span className="text-lg">{game.emoji}</span>
-                  }
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-zinc-400">{game.label}</span>
+                    {puzzleNum && <span className="text-xs text-zinc-600">#{puzzleNum}</span>}
+                  </div>
+                  <span className="text-lg">{game.emoji}</span>
                 </div>
                 {myScore ? (
                   <>
