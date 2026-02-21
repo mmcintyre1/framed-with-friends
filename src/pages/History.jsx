@@ -52,9 +52,22 @@ function computeStreaks(allScores, userId) {
   return { current, best }
 }
 
+const DIST_PERIODS = [
+  { key: '7d',  label: '7d',  days: 6 },
+  { key: '30d', label: '30d', days: 29 },
+  { key: 'all', label: 'All', days: null },
+]
+
 function ScoreDistribution({ scores, userId, gameFilter }) {
+  const [period, setPeriod] = useState('all')
+  const cutoff = DIST_PERIODS.find(p => p.key === period)?.days != null
+    ? daysAgoET(DIST_PERIODS.find(p => p.key === period).days)
+    : null
+
   const relevant = scores.filter(s =>
-    s.player_id === userId && (gameFilter === 'all' || s.game_key === gameFilter)
+    s.player_id === userId &&
+    (gameFilter === 'all' || s.game_key === gameFilter) &&
+    (!cutoff || s.date >= cutoff)
   )
   if (relevant.length === 0) return null
 
@@ -68,7 +81,22 @@ function ScoreDistribution({ scores, userId, gameFilter }) {
 
   return (
     <div className="bg-zinc-900 rounded-2xl p-4">
-      <p className="text-xs text-zinc-500 uppercase tracking-wider mb-3">Score distribution</p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-zinc-500 uppercase tracking-wider">Score distribution</p>
+        <div className="flex gap-1">
+          {DIST_PERIODS.map(p => (
+            <button
+              key={p.key}
+              onClick={() => setPeriod(p.key)}
+              className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
+                period === p.key ? 'bg-zinc-700 text-zinc-200' : 'text-zinc-600 hover:text-zinc-400'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="space-y-1.5">
         {['1', '2', '3', '4', '5', '6', 'X'].map(label => {
           const count = counts[label]
