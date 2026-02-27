@@ -95,13 +95,17 @@ export default function Leaderboard() {
         played,
         solved,
         avg,
-        displayScore: avg !== null ? avg : '—',
-        subtitle: played > 0 ? `${solved}/${played} solved` : 'no scores',
-        sortKey: avg !== null ? parseFloat(avg) : 999,
+        displayScore: played > 0 ? solved : '—',
+        subtitle: avg !== null ? `avg ${avg}` : 'no scores',
       }
     })
     .filter(r => r.played > 0)
-    .sort((a, b) => a.sortKey - b.sortKey)
+    .sort((a, b) => {
+      if (b.solved !== a.solved) return b.solved - a.solved
+      const aAvg = a.avg !== null ? parseFloat(a.avg) : 999
+      const bAvg = b.avg !== null ? parseFloat(b.avg) : 999
+      return aAvg - bAvg
+    })
   }
 
   const rows = computeRows()
@@ -151,7 +155,7 @@ export default function Leaderboard() {
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-zinc-500 uppercase tracking-wider">
-            {PERIODS.find(p => p.key === period)?.desc} avg guesses (DNF = 7)
+            {PERIODS.find(p => p.key === period)?.desc} puzzles solved · avg as tiebreaker
           </p>
           <LeaderboardTable rows={rows} userId={user.id} />
         </div>
