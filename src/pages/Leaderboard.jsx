@@ -95,7 +95,7 @@ export default function Leaderboard() {
         played,
         solved,
         avg,
-        displayScore: played > 0 ? solved : '—',
+        displayScore: played > 0 ? `${solved}/${played}` : '—',
         subtitle: avg !== null ? `avg ${avg}` : 'no scores',
       }
     })
