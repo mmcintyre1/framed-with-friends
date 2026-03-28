@@ -7,6 +7,7 @@ import { todayET, weekStartET, addDays } from '../lib/dates'
 
 const TODAY = todayET()
 const CURRENT_WEEK_START = weekStartET(TODAY)
+const COMPETITION_START = '2026-03-29' // weekly competition begins this week
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -103,7 +104,7 @@ export default function Leaderboard() {
 
   const winsRows = useMemo(() => {
     const pastWeekStarts = [...new Set(scores.map(s => weekStartET(s.date)))]
-      .filter(ws => ws < CURRENT_WEEK_START)
+      .filter(ws => ws >= COMPETITION_START && ws < CURRENT_WEEK_START)
       .sort()
 
     const winCounts = Object.fromEntries(players.map(p => [p.id, 0]))
@@ -210,24 +211,32 @@ export default function Leaderboard() {
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-zinc-500 uppercase tracking-wider">
-            Weeks won · all time
+            Weeks won · since {COMPETITION_START}
           </p>
           {winsRows.length === 0 ? (
             <div className="text-center text-zinc-600 py-8">No completed weeks yet</div>
-          ) : (
-            <div className="space-y-1">
-              {winsRows.map((row, i) => (
-                <PlayerRow
-                  key={row.id}
-                  row={row}
-                  rank={i + 1}
-                  userId={user.id}
-                  right={String(row.wins)}
-                  sub={row.wins === 1 ? 'week' : 'weeks'}
-                />
-              ))}
-            </div>
-          )}
+          ) : (() => {
+            const maxWins = winsRows[0].wins
+            return (
+              <div className="bg-zinc-900 rounded-2xl p-4 space-y-3">
+                {winsRows.map(row => (
+                  <div key={row.id} className="flex items-center gap-3">
+                    <Avatar avatar={row.avatar} name={row.name} size="xs" />
+                    <span className={`text-sm w-20 shrink-0 truncate ${row.id === user.id ? 'text-emerald-400 font-medium' : 'text-zinc-300'}`}>
+                      {row.name}
+                    </span>
+                    <div className="flex-1 bg-zinc-800 rounded-full h-5 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${row.id === user.id ? 'bg-emerald-500' : 'bg-zinc-600'}`}
+                        style={{ width: `${(row.wins / maxWins) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-mono text-zinc-400 w-6 text-right">{row.wins}</span>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
         </div>
       )}
     </div>
