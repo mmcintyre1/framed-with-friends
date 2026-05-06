@@ -80,7 +80,7 @@ export default function Leaderboard() {
       setLoading(true)
       const [{ data: playersData }, { data: scoresData }] = await Promise.all([
         supabase.from('players').select('id, name, avatar'),
-        supabase.from('scores').select('*'),
+        supabase.from('scores').select('*').gte('date', COMPETITION_START),
       ])
       setPlayers(playersData || [])
       setScores(scoresData || [])
