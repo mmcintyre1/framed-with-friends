@@ -187,7 +187,7 @@ export default function History() {
     async function load() {
       const [{ data: playersData }, { data: scoresData }] = await Promise.all([
         supabase.from('players').select('id, name, avatar'),
-        supabase.from('scores').select('*').order('date', { ascending: false }),
+        supabase.from('scores').select('*').order('date', { ascending: false }).limit(5000),
       ])
       setPlayers(playersData || [])
       setScores(scoresData || [])
