@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../context/UserContext'
 import { GAMES } from '../lib/constants'
@@ -7,9 +7,23 @@ import { todayET, weekStartET, addDays } from '../lib/dates'
 
 const TODAY = todayET()
 const CURRENT_WEEK_START = weekStartET(TODAY)
-const COMPETITION_START = '2026-03-29' // weekly competition begins this week
+const COMPETITION_START = '2026-03-29'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+async function fetchPaginated(query) {
+  const PAGE = 1000
+  let all = []
+  let from = 0
+  while (true) {
+    const { data } = await query.range(from, from + PAGE - 1)
+    if (!data?.length) break
+    all = all.concat(data)
+    if (data.length < PAGE) break
+    from += PAGE
+  }
+  return all
+}
 
 function formatWeekLabel(start) {
   const end = addDays(start, 6)
@@ -71,31 +85,48 @@ export default function Leaderboard() {
   const [view, setView] = useState('week')
   const [weekOffset, setWeekOffset] = useState(0)
   const [gameFilter, setGameFilter] = useState('all')
-  const [scores, setScores] = useState([])
   const [players, setPlayers] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [weekScores, setWeekScores] = useState([])
+  const [allScores, setAllScores] = useState([])
+  const [weekLoading, setWeekLoading] = useState(true)
+  const [winsLoading, setWinsLoading] = useState(false)
+  const winsLoaded = useRef(false)
 
+  // Players loaded once
   useEffect(() => {
-    async function load() {
-      setLoading(true)
-      const [{ data: playersData }, { data: scoresData }] = await Promise.all([
-        supabase.from('players').select('id, name, avatar'),
-        supabase.from('scores').select('*').gte('date', COMPETITION_START).limit(5000),
-      ])
-      setPlayers(playersData || [])
-      setScores(scoresData || [])
-      setLoading(false)
-    }
-    load()
+    supabase.from('players').select('id, name, avatar').then(({ data }) => {
+      setPlayers(data || [])
+    })
   }, [])
+
+  // Week scores: only the 7 days being displayed, re-fetched on navigation
+  useEffect(() => {
+    if (view !== 'week') return
+    setWeekLoading(true)
+    const start = addDays(CURRENT_WEEK_START, weekOffset * 7)
+    const end = addDays(start, 6)
+    supabase.from('scores').select('*').gte('date', start).lte('date', end)
+      .then(({ data }) => {
+        setWeekScores(data || [])
+        setWeekLoading(false)
+      })
+  }, [view, weekOffset])
+
+  // Wins scores: all competition scores, paginated, loaded once and cached
+  useEffect(() => {
+    if (view !== 'wins' || winsLoaded.current) return
+    setWinsLoading(true)
+    fetchPaginated(
+      supabase.from('scores').select('*').gte('date', COMPETITION_START).order('date')
+    ).then(data => {
+      setAllScores(data)
+      setWinsLoading(false)
+      winsLoaded.current = true
+    })
+  }, [view])
 
   const weekStart = addDays(CURRENT_WEEK_START, weekOffset * 7)
   const weekEnd = addDays(weekStart, 6)
-
-  const weekScores = useMemo(
-    () => scores.filter(s => s.date >= weekStart && s.date <= weekEnd),
-    [scores, weekStart, weekEnd]
-  )
 
   const weekRows = useMemo(
     () => computeStandings(weekScores, players, gameFilter),
@@ -103,14 +134,14 @@ export default function Leaderboard() {
   )
 
   const winsRows = useMemo(() => {
-    const pastWeekStarts = [...new Set(scores.map(s => weekStartET(s.date)))]
+    const pastWeekStarts = [...new Set(allScores.map(s => weekStartET(s.date)))]
       .filter(ws => ws >= COMPETITION_START && ws < CURRENT_WEEK_START)
       .sort()
 
     const winCounts = Object.fromEntries(players.map(p => [p.id, 0]))
     pastWeekStarts.forEach(ws => {
       const we = addDays(ws, 6)
-      const wScores = scores.filter(s => s.date >= ws && s.date <= we)
+      const wScores = allScores.filter(s => s.date >= ws && s.date <= we)
       const standings = computeStandings(wScores, players, 'all')
       if (standings.length > 0) winCounts[standings[0].id]++
     })
@@ -119,7 +150,7 @@ export default function Leaderboard() {
       .map(p => ({ ...p, wins: winCounts[p.id] || 0 }))
       .filter(p => p.wins > 0)
       .sort((a, b) => b.wins - a.wins)
-  }, [scores, players])
+  }, [allScores, players])
 
   const weekLabel = formatWeekLabel(weekStart)
   const weekSublabel = weekOffset === 0 ? 'current week' : weekOffset === -1 ? 'last week' : ''
@@ -140,9 +171,7 @@ export default function Leaderboard() {
         ))}
       </div>
 
-      {loading ? (
-        <div className="text-center text-zinc-600 py-8">Loading…</div>
-      ) : view === 'week' ? (
+      {view === 'week' ? (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <button
@@ -186,7 +215,9 @@ export default function Leaderboard() {
             ))}
           </div>
 
-          {weekRows.length === 0 ? (
+          {weekLoading ? (
+            <div className="text-center text-zinc-600 py-8">Loading…</div>
+          ) : weekRows.length === 0 ? (
             <div className="text-center text-zinc-600 py-8">No scores yet this week</div>
           ) : (
             <div className="space-y-3">
@@ -213,7 +244,9 @@ export default function Leaderboard() {
           <p className="text-xs text-zinc-500 uppercase tracking-wider">
             Weeks won · since {COMPETITION_START}
           </p>
-          {winsRows.length === 0 ? (
+          {winsLoading ? (
+            <div className="text-center text-zinc-600 py-8">Loading…</div>
+          ) : winsRows.length === 0 ? (
             <div className="text-center text-zinc-600 py-8">No completed weeks yet</div>
           ) : (() => {
             const maxWins = winsRows[0].wins

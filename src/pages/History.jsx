@@ -185,12 +185,25 @@ export default function History() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: playersData }, { data: scoresData }] = await Promise.all([
+      const PAGE = 1000
+      async function fetchAllScores() {
+        let all = [], from = 0
+        while (true) {
+          const { data } = await supabase.from('scores').select('*')
+            .order('date', { ascending: false }).range(from, from + PAGE - 1)
+          if (!data?.length) break
+          all = all.concat(data)
+          if (data.length < PAGE) break
+          from += PAGE
+        }
+        return all
+      }
+      const [{ data: playersData }, scoresData] = await Promise.all([
         supabase.from('players').select('id, name, avatar'),
-        supabase.from('scores').select('*').order('date', { ascending: false }).limit(5000),
+        fetchAllScores(),
       ])
       setPlayers(playersData || [])
-      setScores(scoresData || [])
+      setScores(scoresData)
       setLoading(false)
     }
     load()
